@@ -98,7 +98,7 @@ router.get("/view/:date/:filename", async (req, res) => {
 		previousPhoto: photo.previous,
 		nextPhoto: photo.next,
 		// NOTE: The below does not currently work when the user-facing HTTPd is running on a non-standard port!
-		absoluteThumbnail: `${req.protocol}://${req.host}${config.pathPrefix}/thumbnails/${photo.date.date}/${photo.filename}`
+		absoluteThumbnail: `${req.protocol}://${req.host}${config.pathPrefix}/thumbnails/${photo.date.date}/${photo.filename}`,
 	});
 });
 
