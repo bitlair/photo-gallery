@@ -23,4 +23,9 @@ block contents
 		if nextPhoto != null
 			a.next(href=`${pathPrefix}/view/${nextPhoto.date.date}/${nextPhoto.filename}`) ▶
 
-		img.large(src=`${pathPrefix}/photos/${photo.date.date}/${photo.filename}`)
+		if photo.kind == 'image'
+			img.large(src=`${pathPrefix}/photos/${photo.date.date}/${photo.filename}`)
+		else if photo.kind == 'video'
+			video.large(autoplay muted loop src=`${pathPrefix}/photos/${photo.date.date}/${photo.filename}`)
+		else
+			p= "not sure how to display this file..."

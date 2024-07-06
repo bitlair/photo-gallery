@@ -20,6 +20,7 @@ block contents
 				
 				.photos
 					for photo in date.entries
-						a(href=`${pathPrefix}/view/${date.date}/${photo.filename}`): img.photo(src=`${pathPrefix}/thumbnails/${date.date}/${photo.filename}`)
-							
+						a(href=`${pathPrefix}/view/${date.date}/${photo.filename}`)
+							img.photo(src=`${pathPrefix}/thumbnails/${date.date}/${photo.filename}`)
+
 	+pageNavigation

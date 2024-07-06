@@ -1,10 +1,8 @@
 'use strict';
 
-const Promise = require("bluebird");
 const express = require("express");
 const expressPromiseRouter = require("express-promise-router");
 const path = require("path");
-const fs = Promise.promisifyAll(require("fs"));
 const defaultValue = require("default-value");
 const unhandledError = require("unhandled-error");
 
@@ -43,88 +41,81 @@ app.use("/photos", express.static(config.pictureFolder));
 
 let router = expressPromiseRouter();
 
-router.get("/latest", (req, res) => {
-	return Promise.try(() => {
-		if (req.query.amount != null) {
-			validateNumber(req.query.amount);
-		}
+router.get("/latest", async (req, res) => {
+	if (req.query.amount != null) {
+		validateNumber(req.query.amount);
+	}
 
-		return photoManager.getPictures();
-	}).then((pictures) => {
-		let amount = parseInt(defaultValue(req.query.amount, 3));
+	let pictures = await photoManager.getPictures();
 
-		res.json({
-			latest: pictures.slice(0, amount).map((picture) => {
-				return {
-					date: picture.date.momentDate.format("YYYY-MM-DD"),
-					filename: picture.filename,
-					url: `${config.pathPrefix}/view/${picture.date.date}/${picture.filename}`,
-					thumbnail: `${config.pathPrefix}/thumbnails/${picture.date.date}/${picture.filename}`
-				};
-			})
-		});
+	let amount = parseInt(defaultValue(req.query.amount, 3));
+
+	res.json({
+		latest: pictures.slice(0, amount).map((picture) => {
+			return {
+				date: picture.date.momentDate.format("YYYY-MM-DD"),
+				filename: picture.filename,
+				url: `${config.pathPrefix}/view/${picture.date.date}/${picture.filename}`,
+				thumbnail: `${config.pathPrefix}/thumbnails/${picture.date.date}/${picture.filename}`
+			};
+		})
 	});
 });
 
-router.get("/:page?", (req, res) => {
-	return Promise.try(() => {
-		if (req.params.page != null) {
-			validateNumber(req.params.page);
-		}
+router.get("/:page?", async (req, res) => {
+	if (req.params.page != null) {
+		validateNumber(req.params.page);
+	}
 
-		return photoManager.getPaginatedDatesWithPictures();
-	}).then((dates) => {
-		let pageParam = defaultValue(req.params.page, 1);
-		let pageNumber = parseInt(pageParam) - 1;
+	let dates = await photoManager.getPaginatedDatesWithPictures();
+	let pageParam = defaultValue(req.params.page, 1);
+	let pageNumber = parseInt(pageParam) - 1;
 
-		if (pageNumber < 0 || pageNumber > dates.length - 1) {
-			res.status(404).send("404 not found");
-		} else {
-			res.render("index", {
-				dates: dates[pageNumber],
-				currentPage: pageNumber + 1,
-				totalPages: dates.length
-			});
-		}
+	if (pageNumber < 0 || pageNumber > dates.length - 1) {
+		res.status(404).send("404 not found");
+		return;
+	}
+
+	res.render("index", {
+		dates: dates[pageNumber],
+		currentPage: pageNumber + 1,
+		totalPages: dates.length
 	});
 });
 
-router.get("/view/:date/:filename", (req, res) => {
-	return Promise.try(() => {
-		validateDateFolderName(req.params.date);
-		validatePhotoFilename(req.params.filename);
+router.get("/view/:date/:filename", async (req, res) => {
+	validateDateFolderName(req.params.date);
+	validatePhotoFilename(req.params.filename);
 
-		return photoManager.getPicture(req.params.date, req.params.filename);
-	}).then((photo) => {
-		if (photo == null) {
-			res.status(404).send("404 not found");
-		} else {
-			res.render("view", {
-				photo: photo,
-				previousPhoto: photo.previous,
-				nextPhoto: photo.next,
-				// NOTE: The below does not currently work when the user-facing HTTPd is running on a non-standard port!
-				absoluteThumbnail: `${req.protocol}://${req.host}${config.pathPrefix}/thumbnails/${photo.date.date}/${photo.filename}`
-			});
-		}
+	let photo = await photoManager.getPicture(req.params.date, req.params.filename);
+	if (photo == null) {
+		res.status(404).send("404 not found");
+		return;
+	}
+
+	res.render("view", {
+		photo: photo,
+		previousPhoto: photo.previous,
+		nextPhoto: photo.next,
+		// NOTE: The below does not currently work when the user-facing HTTPd is running on a non-standard port!
+		absoluteThumbnail: `${req.protocol}://${req.host}${config.pathPrefix}/thumbnails/${photo.date.date}/${photo.filename}`,
 	});
 });
 
-router.get("/thumbnails/:date/:filename", (req, res) => {
-	return Promise.try(() => {
-		validateDateFolderName(req.params.date);
-		validatePhotoFilename(req.params.filename);
+router.get("/thumbnails/:date/:filename", async (req, res) => {
+	validateDateFolderName(req.params.date);
+	validatePhotoFilename(req.params.filename);
 
-		return thumbnailer(req.params.date, req.params.filename);
-	}).then((stream) => {
+	try {
+		let stream = await thumbnailer(req.params.date, req.params.filename);
 		stream.pipe(res);
-	}).catch((err) => {
+	} catch (err) {
 		if (/Unable to open file/.test(err.message)) {
 			res.status(404).send("404 not found");
 		} else {
 			throw err;
 		}
-	});
+	}
 });
 
 app.use(router);
